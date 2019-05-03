@@ -227,11 +227,11 @@ class LiveImageCreatorBase(LoopImageCreator):
         self.base_on = True
         LoopImageCreator._mount_instroot(self, base_on)
         self.__write_initrd_conf(self._instroot + "/etc/sysconfig/mkinitrd")
-        self.__write_dracut_conf(self._instroot + "/etc/dracut.conf.d/02livecd.conf")
+        self.__write_dracut_conf(self._instroot + "/etc/dracut.conf.d/99-liveos.conf")
 
     def _unmount_instroot(self):
         self.__restore_file(self._instroot + "/etc/sysconfig/mkinitrd")
-        self.__restore_file(self._instroot + "/etc/dracut.conf.d/02livecd.conf")
+        self.__restore_file(self._instroot + "/etc/dracut.conf.d/99-liveos.conf")
         LoopImageCreator._unmount_instroot(self)
 
     def __ensure_isodir(self):
@@ -268,7 +268,7 @@ class LiveImageCreatorBase(LoopImageCreator):
         return env
 
     def __extra_filesystems(self):
-        return "vfat msdos isofs ext4 xfs btrfs";
+        return "vfat msdos isofs ext4 xfs btrfs squashfs";
 
     def __extra_drivers(self):
         retval = "sr_mod sd_mod ide-cd cdrom "
@@ -472,15 +472,18 @@ class x86LiveImageCreator(LiveImageCreatorBase):
                         isodir + "/isolinux/vmlinuz" + index)
 
         isDracut = False
+        if os.path.exists(self._instroot + "/usr/bin/dracut"):
+            isDracut = True
+
+        # FIXME: Implement a better check for how the initramfs is named...
         if os.path.exists(bootdir + "/initramfs-" + version + ".img"):
             shutil.copyfile(bootdir + "/initramfs-" + version + ".img",
                             isodir + "/isolinux/initrd" + index + ".img")
-            isDracut = True
         elif os.path.exists(bootdir + "/initrd-" + version + ".img"):
             shutil.copyfile(bootdir + "/initrd-" + version + ".img",
                             isodir + "/isolinux/initrd" + index + ".img")
         elif not self.base_on:
-            logging.error("No initrd or initramfs found for %s" % (version,))
+            logging.error("No initramfs or initrd found for %s" % (version,))
 
         is_xen = False
         if os.path.exists(bootdir + "/xen.gz-" + version[:-3]):
